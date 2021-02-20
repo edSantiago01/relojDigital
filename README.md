@@ -6,8 +6,8 @@ PORT_C: salida de hora en formato BCD
 
 PORT_D: salida de minuto en formato BCD
 
-PIN_E0: salida pulso de segundo
+PIN_A0: salida pulso de segundo
 
-PIN_A0: entrada config
+PIN_E0: entrada config
 
-PIN_A1: entrada incremento para config
+PIN_E1: entrada incremento para config
