@@ -9,6 +9,7 @@ void mostrarHoraMinuto(int, int);
 void mostrarSegundo();
 void config();
 void actualizarTiempo(int, int, int, int, int, int);
+int verificaFecha(int, int, int);
 
 void main(){
    int hora, minuto, segActual, segAnterior=0;
@@ -68,11 +69,11 @@ void config(){
       }else if(set == 2){
          output_a(0b001000);
          output_low(PIN_E2);
-          mostrarHoraMinuto(0, dia+1);
+          mostrarHoraMinuto(0, dia);
       }else if(set == 3){
          output_a(0b010000);
          output_low(PIN_E2);
-         mostrarHoraMinuto(0, mes+1);
+         mostrarHoraMinuto(0, mes);
       }else if(set == 4){
          output_a(0b100000);
          output_low(PIN_E2);         
@@ -99,11 +100,11 @@ void config(){
             rtc_set_datetime(dia, mes, anio, semana, hora, minuto);
          } else if(set == 2){                // día
             dia++;
-            if(dia>30)dia=0;
+            dia = verificaFecha(dia, mes, anio);
             rtc_set_datetime(dia, mes, anio, semana, hora, minuto);         
          }else if(set == 3){                 // mes
             mes++;
-            if(mes>11) mes = 0;
+           if(mes>12) mes = 1;
             rtc_set_datetime(dia, mes, anio, semana, hora, minuto);
          }else if(set == 4){                 //año
             anio++;
@@ -138,5 +139,23 @@ void mostrarSegundo(){
    OUT_SEGUNDO = !OUT_SEGUNDO;
 }
 
-
+int verificaFecha(int dia, int mes, int anio){
+   int limiteDias = 31;
+   int dia2;
+   int bisiesto;
+   
+   if((mes == 4) || (mes == 6) || (mes == 9) || (mes == 11)){
+      limiteDias = 30;
+   }else if(mes == 2){
+      bisiesto = anio%4;
+      if(bisiesto == 0)  limiteDias = 29;
+      else limiteDias = 28;
+   }  
+   
+   if(dia > limiteDias){
+      dia2 = dia - limiteDias;
+   }else dia2 = dia;
+   
+   return dia2;
+}
 
