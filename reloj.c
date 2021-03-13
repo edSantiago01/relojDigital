@@ -1,48 +1,75 @@
 #include <16F877A.h>
-#use delay (clock=4000000,RESTART_WDT)
 #fuses XT,NOWDT,NOPROTECT,PUT
+#device ADC = 10
+#use delay (clock=4000000,RESTART_WDT)
 #include <DS1302.C>
 
 boolean OUT_SEGUNDO = true;
 
 void mostrarHoraMinuto(int, int);
 void mostrarSegundo();
+void leerTemperatura();
 void config();
 void actualizarTiempo(int, int, int, int, int, int);
 int verificaFecha(int, int, int);
 
-void main(){
+void main(){   
    int hora, minuto, segActual, segAnterior=0;
-   int inConfig;
+   int inConfig, inTemperatura;
    
-   setup_adc_ports(NO_ANALOGS);
-   setup_adc(ADC_OFF);
-   set_tris_a(0b000000);  //(1)setHora,(2)setMin,(3)setDia,(4)setMes,(5)setanio,(6)setDiaSemana
+   set_tris_a(0b000001);  //(1)InTemperatura,(2)setHora,(3)setDia,(4)setMes,(5)setanio,(6)setDiaSemana   
    set_tris_c(0b00000000); //salida multiplexor, indicar que display encender
-   set_tris_d(0b00000000); //salida de bits, multiplexación 
+   set_tris_d(0b00000000); //salida de bits, multiplexación (7)setMinuto
    set_tris_e(0b111); //(0)config más de 1 seg. (1) decremento (2)incremento
    output_a(0x00);
    output_d(0x00);
+     
+   setup_adc(ADC_CLOCK_INTERNAL);
+   setup_adc_ports(AN0); 
+   set_adc_channel(0); 
       
    rtc_init();
       
-   for(;;){   
-      inConfig = INPUT(PIN_E0);
-      while(inConfig == 0){          
-         inConfig = INPUT(PIN_E0);
+   for(;;){        
+     inConfig      = INPUT(PIN_E0);
+     inTemperatura = INPUT(PIN_B7);
+     
+     while((inConfig == 0) && (inTemperatura == 0)){                      
+         inConfig      = INPUT(PIN_E0);
+         inTemperatura = INPUT(PIN_B7);
          rtc_get_time(hora, minuto, segActual); 
          if(segAnterior != segActual){    
             segAnterior = segActual;
-            mostrarSegundo();
-                     
+            mostrarSegundo();                     
          }
-          mostrarHoraMinuto(hora, minuto); 
-         
+          mostrarHoraMinuto(hora, minuto);          
       }
-      config();
+      
+      if(inConfig == 1){      
+         config();
+      }else if(inTemperatura == 1){
+         leerTemperatura();
+      }
+     
    }
           
-}     
+}  
+
+void leerTemperatura(){
+   float temperatura;
+   int i = 0, fin = 800, intTemp;   
+   delay_ms(400);
+   temperatura = read_adc();  
+   // 100mV —> temperature = 10°C
+   // 0V -> 0,  5V -> 1023
+   // 1bit = 0.48828125°C, aplicamos regla de tres
+   temperatura = temperatura  * 0.48828125;   
+   intTemp = (int)temperatura;
+   while(i<fin){
+      mostrarHoraMinuto(0, intTemp);
+      i++;
+   }
+}
 
 void config(){
    int set = 0;   //0 min, 1 hora, 2 dia, 3 mes, 4 anio
@@ -61,12 +88,14 @@ void config(){
       rtc_get_date(dia, mes, anio, semana);
       rtc_get_time(hora, minuto, segundo);
       if(set == 0){
-         output_a(0b000001);         
+         output_high(PIN_D7);        
          mostrarHoraMinuto(hora, minuto);
       }else if(set == 1){
+         output_low(PIN_D7);         
          output_a(0b000010);         
          mostrarHoraMinuto(hora, minuto);
       }else if(set == 2){
+         output_low(PIN_D6);
          output_a(0b000100);         
           mostrarHoraMinuto(0, dia);
       }else if(set == 3){
@@ -127,10 +156,10 @@ void mostrarHoraMinuto(hora, minuto){
   byte binMinuto, binHora, binDecMinuto, binDecHora;
   int minutoDec, horaDec, minutoUnidad, horaUnidad;
   
-  minutoDec = minuto / 10;
   minutoUnidad = minuto%10;
-  horaDec   = hora / 10;
-  horaUnidad = minuto%10;
+  minutoDec    = minuto / 10;  
+  horaUnidad = hora%10;
+  horaDec    = hora / 10;  
   
   binMinuto    = get_bcd(minutoUnidad);
   binDecMinuto = get_bcd(minutoDec);  
@@ -140,19 +169,19 @@ void mostrarHoraMinuto(hora, minuto){
   
   output_d(binMinuto);
   output_c(0b000001);
-  delay_ms(5);  
+  delay_ms(4);  
   
   output_d(binDecMinuto);  //decimales minuto
   output_c(0b000010);
-  delay_ms(5);
+  delay_ms(4);
   
   output_d(binhora);
   output_c(0b000100);
-  delay_ms(5);  
+  delay_ms(4);  
   
-  output_d(binDecHora);  //decimales minuto
+  output_d(binDecHora);  //decimales hora
   output_c(0b001000);
-  delay_ms(5);
+  delay_ms(4);
 }
 
 void mostrarSegundo(){
